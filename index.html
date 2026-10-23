@@ -1,34 +1,290 @@
-<div class="logo">🪙 CoinTap</div>
-<div class="subtitle">Tap and collect coins</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoinTap</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-<div class="balance" id="balance">0</div>
-<div class="coin-name">COIN</div>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-<div class="tap-area" id="tapButton">
-  <div class="coin">₿</div>
-</div>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(160deg, #0b1024, #25104b);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+      user-select: none;
+    }
 
-<div class="energy">
-  ⚡️ Energy: <span id="energy">1000</span> / 1000
-</div>
+    .app {
+      max-width: 430px;
+      margin: auto;
+    }
 
-<div class="bar">
-  <div class="bar-fill" id="energyBar"></div>
-</div>
+    .logo {
+      font-size: 30px;
+      font-weight: 800;
+      margin-top: 10px;
+    }
 
-<div class="stats">
-  <div class="card">
-    <div class="card-title">Level</div>
-    <div class="card-value" id="level">1</div>
+    .subtitle {
+      color: #aaa;
+      margin-top: 5px;
+    }
+
+    .balance {
+      font-size: 48px;
+      font-weight: 800;
+      margin-top: 30px;
+    }
+
+    .coin-name {
+      color: #b99cff;
+      font-weight: bold;
+    }
+
+    .tap-button {
+      width: 230px;
+      height: 230px;
+      margin: 30px auto;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #8055ff, #4822b5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 0 50px rgba(128,85,255,.45);
+      transition: .08s;
+    }
+
+    .tap-button:active {
+      transform: scale(.92);
+    }
+
+    .coin {
+      width: 165px;
+      height: 165px;
+      border-radius: 50%;
+      background: #ffd83d;
+      border: 8px solid #ffe990;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 65px;
+      color: #765600;
+      font-weight: bold;
+    }
+
+    .energy {
+      font-size: 17px;
+      margin-top: 5px;
+    }
+
+    .bar {
+      height: 12px;
+      background: #322a4a;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 100%;
+      background: #ffd83d;
+      transition: width .2s;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 25px;
+    }
+
+    .card {
+      background: rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .title {
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    .value {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 6px;
+    }
+
+    .bonus {
+      margin-top: 20px;
+      width: 100%;
+      padding: 16px;
+      border: 0;
+      border-radius: 14px;
+      background: #ffd83d;
+      color: #352700;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .bonus:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 10px;
+      color: #aaa;
+      min-height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <div class="logo">🪙 CoinTap</div>
+  <div class="subtitle">Tap and collect coins</div>
+
+  <div class="balance" id="balance">0</div>
+  <div class="coin-name">COIN</div>
+
+  <div class="tap-button" id="tapButton">
+    <div class="coin">₿</div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Per Tap</div>
-    <div class="card-value">+1 🪙</div>
+  <div class="energy">
+    ⚡ <span id="energy">1000</span> / 1000
   </div>
+
+  <div class="bar">
+    <div class="bar-fill" id="energyBar"></div>
+  </div>
+
+  <div class="cards">
+
+    <div class="card">
+      <div class="title">Level</div>
+      <div class="value" id="level">1</div>
+    </div>
+
+    <div class="card">
+      <div class="title">Per Tap</div>
+      <div class="value">+1 🪙</div>
+    </div>
+
+  </div>
+
+  <button class="bonus" id="bonusButton">
+    🎁 Daily Bonus +100
+  </button>
+
+  <div class="message" id="message"></div>
+
 </div>
 
-<button class="reset" id="resetButton">
-  Reset demo
-</button>
+<script>
 
+const tg = window.Telegram?.WebApp;
+
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
+
+let balance = Number(localStorage.getItem("cointap_balance")) || 0;
+let energy = Number(localStorage.getItem("cointap_energy")) || 1000;
+
+const MAX_ENERGY = 1000;
+
+const balanceEl = document.getElementById("balance");
+const energyEl = document.getElementById("energy");
+const energyBar = document.getElementById("energyBar");
+const levelEl = document.getElementById("level");
+const tapButton = document.getElementById("tapButton");
+const bonusButton = document.getElementById("bonusButton");
+const message = document.getElementById("message");
+
+function level() {
+  return Math.floor(balance / 1000) + 1;
+}
+
+function save() {
+  localStorage.setItem("cointap_balance", balance);
+  localStorage.setItem("cointap_energy", energy);
+}
+
+function update() {
+
+  balanceEl.textContent = balance.toLocaleString();
+  energyEl.textContent = energy;
+  levelEl.textContent = level();
+
+  const percent = (energy / MAX_ENERGY) * 100;
+  energyBar.style.width = percent + "%";
+
+  save();
+}
+
+tapButton.addEventListener("click", function() {
+
+  if (energy <= 0) {
+    message.textContent = "⚡ Energy tugadi!";
+    return;
+  }
+
+  balance += 1;
+  energy -= 1;
+
+  message.textContent = "+1 COIN";
+
+  update();
+});
+
+bonusButton.addEventListener("click", function() {
+
+  const today = new Date().toISOString().slice(0, 10);
+  const lastBonus = localStorage.getItem("cointap_bonus");
+
+  if (lastBonus === today) {
+    message.textContent = "🎁 Bugungi bonus allaqachon olindi!";
+    return;
+  }
+
+  balance += 100;
+
+  localStorage.setItem("cointap_bonus", today);
+
+  message.textContent = "🎉 +100 COIN olindi!";
+
+  update();
+});
+
+setInterval(function() {
+
+  if (energy < MAX_ENERGY) {
+    energy += 1;
+    update();
+  }
+
+}, 3000);
+
+update();
+
+</script>
+
+</body>
+</html>
